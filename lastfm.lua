@@ -115,6 +115,55 @@ local function is_track_loved(artist, title)
     return false
 end
 
+local function get_track_scrobble_count(artist, title)
+    if not username then return "?" end
+
+    local response, status = cliamp.http.get(API_URL .. "?" .. build_query_string({
+        method = "track.getInfo",
+        api_key = api_key,
+        artist = artist,
+        track = title,
+        username = username,
+        format = "json",
+    }))
+
+    if tostring(status) == "200" then
+        local data = cliamp.json.decode(response)
+        if data and data.track and data.track.userplaycount then
+            local count = tonumber(data.track.userplaycount)
+            if count then
+                return format_number(count)
+            end
+        end
+    end
+
+    return "0"
+end
+
+local function get_user_loved_count()
+    if not username then return "?" end
+
+    local response, status = cliamp.http.get(API_URL .. "?" .. build_query_string({
+        method = "user.getLovedTracks",
+        api_key = api_key,
+        user = username,
+        limit = 1,
+        format = "json",
+    }))
+
+    if tostring(status) == "200" then
+        local data = cliamp.json.decode(response)
+        if data and data.lovedtracks and data.lovedtracks["@attr"] and data.lovedtracks["@attr"].total then
+            local count = tonumber(data.lovedtracks["@attr"].total)
+            if count then
+                return format_number(count)
+            end
+        end
+    end
+
+    return "?"
+end
+
 local function unlove_track()
     if not username or not session_key then
         cliamp.message("[last.fm] Not configured", message_duration)
@@ -233,6 +282,7 @@ end
 local function do_scrobble(track, timestamp)
     local artist = track.artist or track.Artist or "Unknown"
     local title = track.title or track.Title or "Unknown"
+    local album = track.album or track.Album or ""
 
     local params = {
         method = "track.scrobble",
@@ -240,6 +290,7 @@ local function do_scrobble(track, timestamp)
         sk = session_key,
         artist = artist,
         track = title,
+        album = album,
         timestamp = tostring(timestamp)
     }
 
@@ -250,6 +301,7 @@ local function do_scrobble(track, timestamp)
         sk = session_key,
         artist = artist,
         track = title,
+        album = album,
         timestamp = tostring(timestamp),
         api_sig = sig,
     })
@@ -258,7 +310,11 @@ local function do_scrobble(track, timestamp)
     last_scrobble_time = os.time()
     if tostring(status) == "200" then
         session_scrobbles = session_scrobbles + 1
-        local stats = ""
+        local scrobble_count = get_track_scrobble_count(artist, title) + 1
+        local total_tracks = "?"
+        local total_artists = "?"
+        local loved_count = "?"
+
         if username then
             local response2, status2 = cliamp.http.get(API_URL .. "?" .. build_query_string({
                 method = "user.getInfo",
@@ -266,8 +322,6 @@ local function do_scrobble(track, timestamp)
                 user = username,
                 format = "json",
             }))
-            local total_tracks = "?"
-            local total_artists = "?"
             if tostring(status2) == "200" then
                 local data = cliamp.json.decode(response2)
                 if data and data.user then
@@ -277,11 +331,20 @@ local function do_scrobble(track, timestamp)
                     if total_artists ~= "?" then total_artists = format_number(tonumber(total_artists)) end
                 end
             end
-            stats = " [Tracks: " .. total_tracks .. " | Artists: " .. total_artists .. " | Session: " .. format_number(session_scrobbles) .. "]"
-        else
-            stats = " [No username set in config.toml]"
+
+            loved_count = get_user_loved_count()
         end
-        cliamp.message("Scrobble Sent: " .. artist .. " - " .. title .. stats, message_duration)          
+
+        scrobble_count = math.max(1, tonumber(scrobble_count) or 0)
+
+        local times_suffix = (tonumber(scrobble_count) == 1) and " time" or " times"
+        local primary_message = "Scrobble Sent: " .. artist .. " - " .. title .. " [Scrobbled: " .. format_number(scrobble_count) .. times_suffix .. "]"
+        local stats_message = "[Tracks: " .. total_tracks .. " | Artists: " .. total_artists .. " | Loved: " .. loved_count .. " | Session: " .. format_number(session_scrobbles) .. "]"
+
+        cliamp.message(primary_message, message_duration)
+        cliamp.timer.after(message_duration, function()
+            cliamp.message(stats_message, message_duration)
+        end)
     else
         local error_detail = "status=" .. tostring(status)
         if response then
