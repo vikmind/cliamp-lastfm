@@ -1,6 +1,6 @@
 ![scrobbling in cliamp](https://github.com/tetsuo76/cliamp-lastfm/blob/main/screenshot.png?raw=true)
 
-Simple last.fm plugin v1.4.0 for [cliamp](https://github.com/bjarneo/cliamp)
+Simple last.fm plugin v1.4.1 for [cliamp](https://github.com/bjarneo/cliamp)
 
 Info about last.fm authentication (in order to create your API_KEY and API_SECRET):
 https://www.last.fm/api/authentication
@@ -28,6 +28,6 @@ Track Loving System:
 
 - Love/Unlove Toggle (* key): Press asterisk to love the current track or unlove it if already loved
 - Loved Track Detection: Automatically displays "♥ Loved Track" notification when a loved track starts playing
-- Scrobble success messages include real-time stats: total tracks, total artists, and session count 
+- Scrobble success messages include real-time stats: total tracks, total artists, and session count
 
-Tested with cliamp v1.49.0
+Tested with cliamp v1.51.1
