@@ -1,7 +1,7 @@
 local p = plugin.register({
     name = "lastfm",
     type = "hook",
-    version = "1.4.0",
+    version = "1.4.1",
     description = "Scrobbles the current track to last.fm",
     permissions = {"keymap"},
 })
