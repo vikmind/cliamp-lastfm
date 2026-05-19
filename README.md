@@ -12,7 +12,7 @@ https://github.com/TheMemoman/lastfm_Get_Session_Key
 
 #### Method 1:
 
-- Copy the plugin (lastfm.lua) into the cliamp's plugins directory (`~/.config/cliamp/plugins`). 
+- Copy the plugin (cliamp-lastfm.lua) into the cliamp's plugins directory (`~/.config/cliamp/plugins`). 
 
 #### Method 2:
 
