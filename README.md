@@ -37,7 +37,7 @@ username = "LASTFM_USERNAME"
 
 - Remove the plugin first
 ```
-cliamp plugins remove cliamp-lastfm
+cliamp plugins remove lastfm
 ```
 - and install the latest version using the cliamp command
 ```
