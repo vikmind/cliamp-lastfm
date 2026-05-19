@@ -1,6 +1,6 @@
 ![scrobbling in cliamp](https://github.com/tetsuo76/cliamp-lastfm/blob/main/screenshot.png?raw=true)
 
-Simple last.fm plugin v1.4.1 for [cliamp](https://github.com/bjarneo/cliamp)
+### Simple last.fm plugin v1.5.0 for [cliamp](https://github.com/bjarneo/cliamp)
 
 Info about last.fm authentication (in order to create your API_KEY and API_SECRET):
 https://www.last.fm/api/authentication
@@ -8,9 +8,15 @@ https://www.last.fm/api/authentication
 Useful python app to obtain your SESSION_KEY:
 https://github.com/TheMemoman/lastfm_Get_Session_Key
 
-Installation/Config:
+### Installation/Config:
+
+#### Method 1:
 
 - Copy the plugin (lastfm.lua) into the cliamp's plugins directory (`~/.config/cliamp/plugins`). 
+
+#### Method 2:
+
+- Install it via cliamp with ~cliamp plugin install tetsuo76/cliamp-lastfm
 
 - Edit cliamp's config file (`~/.config/cliamp/config.toml`) and add the required last.fm section:
 
@@ -29,5 +35,30 @@ Track Loving System:
 - Love/Unlove Toggle (* key): Press asterisk to love the current track or unlove it if already loved
 - Loved Track Detection: Automatically displays "♥ Loved Track" notification when a loved track starts playing
 - Scrobble success messages include real-time stats: total tracks, total artists, and session count
+
+Operating Modes:
+### Normal Mode
+Default behavior.
+
+- Scrobbling enabled
+- Last.fm API enabled
+- UI notifications enabled
+
+### Silence Mode
+Everything works normally, but without UI messages.
+
+- Scrobbling enabled
+- Last.fm API enabled
+- No on-screen notifications
+
+Useful for minimal/distraction-free setups.
+
+### Deactivated Mode
+Fully disables the Last.fm integration.
+
+- No scrobbling
+- No API calls
+- No Last.fm notifications
+- Love/unlove disabled
 
 Tested with cliamp v1.51.1
