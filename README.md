@@ -1,9 +1,9 @@
 ![scrobbling in cliamp](https://github.com/tetsuo76/cliamp-lastfm/blob/main/screenshot.png?raw=true)
 
-## Important Notes:
+## Important Note:
 Some important changes since version 1.4.1:
 - The filename of the .lua file was renamed to `~/.config/cliamp/plugins/cliamp-lastfm.lua`
-- and you need to change `[plugins.lastfm]` to `[plugins.cliamp-lastfm]` in your `config.toml` file.
+- and you need to change `[plugins.lastfm]` to `[plugins.cliamp-lastfm]` in your `~/.config/cliamp/config.toml` file.
 
 The above changes were necessary in order for the `cliamp plugins install` command to work properly.
 
