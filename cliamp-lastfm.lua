@@ -1,7 +1,7 @@
 local p = plugin.register({
     name = "lastfm",
     type = "hook",
-    version = "1.5.0",
+    version = "1.6.0",
     description = "Scrobbles the current track to last.fm",
     permissions = {"keymap"},
 })
@@ -27,6 +27,8 @@ local MODE_SILENT = "silent"
 local MODE_OFF = "off"
 
 local lastfm_mode = MODE_NORMAL
+local current_track_artist = nil
+local current_track_title = nil
 
 local function lastfm_enabled()
     return lastfm_mode ~= MODE_OFF
@@ -118,12 +120,33 @@ local function lastfm_post(params)
     })
 end
 
+local function normalize_track_meta(track)
+    if not track then
+        return "", ""
+    end
+
+    local artist = track.artist or track.Artist or track.artist_name or track.ArtistName or ""
+    local title = track.title or track.Title or track.track or track.Track or ""
+
+    artist = tostring(artist):match("^%s*(.-)%s*$") or ""
+    title = tostring(title):match("^%s*(.-)%s*$") or ""
+    return artist, title
+end
+
+local function get_current_track_meta()
+    local artist = current_track_artist and current_track_artist ~= "" and current_track_artist or cliamp.track.artist()
+    local title = current_track_title and current_track_title ~= "" and current_track_title or cliamp.track.title()
+
+    artist = tostring(artist or ""):match("^%s*(.-)%s*$") or ""
+    title = tostring(title or ""):match("^%s*(.-)%s*$") or ""
+    return artist, title
+end
+
 local function check_track_loved(track)
     if not lastfm_enabled() then return end
     if not username then return end
 
-    local artist = track.artist or track.Artist or ""
-    local title = track.title or track.Title or ""
+    local artist, title = normalize_track_meta(track)
 
     if artist == "" or title == "" then return end
 
@@ -232,10 +255,9 @@ local function unlove_track()
         return
     end
 
-    local artist = cliamp.track.artist()
-    local title = cliamp.track.title()
+    local artist, title = get_current_track_meta()
 
-    if not artist or not title then
+    if artist == "" or title == "" then
         lastfm_message("[last.fm] No track playing", message_duration)
         return
     end
@@ -291,10 +313,9 @@ local function love_track()
         return
     end
 
-    local artist = cliamp.track.artist()
-    local title = cliamp.track.title()
+    local artist, title = get_current_track_meta()
 
-    if not artist or not title then
+    if artist == "" or title == "" then
         lastfm_message("[last.fm] No track playing", message_duration)
         return
     end
@@ -350,11 +371,31 @@ local function love_track()
 end
 
 local function do_scrobble(track, timestamp)
-    if not lastfm_enabled() then return end
+    if not lastfm_enabled() then return false end
 
     local artist = track.artist or track.Artist or "Unknown"
     local title = track.title or track.Title or "Unknown"
     local album = track.album or track.Album or ""
+
+    local function post_scrobble_request(params)
+        local request_params = {}
+        for k, v in pairs(params) do
+            if k ~= "api_sig" then
+                request_params[k] = v
+            end
+        end
+
+        local sig = get_api_sig(request_params)
+        request_params.api_sig = sig
+
+        local response, status = lastfm_post(request_params)
+
+        local decoded = nil
+        pcall(function()
+            decoded = cliamp.json.decode(response)
+        end)
+        return response, status, decoded
+    end
 
     local params = {
         method = "track.scrobble",
@@ -366,22 +407,23 @@ local function do_scrobble(track, timestamp)
         timestamp = tostring(timestamp)
     }
 
-    local sig = get_api_sig(params)
+    local response, status, decoded = post_scrobble_request(params)
+    local accepted = decoded and decoded.scrobbles and decoded.scrobbles["@attr"] and tonumber(decoded.scrobbles["@attr"].accepted)
+    local ignored = decoded and decoded.scrobbles and decoded.scrobbles["@attr"] and tonumber(decoded.scrobbles["@attr"].ignored)
+    local ignored_code = decoded and decoded.scrobbles and decoded.scrobbles.scrobble and decoded.scrobbles.scrobble.ignoredMessage and decoded.scrobbles.scrobble.ignoredMessage.code
 
-    local response, status = lastfm_post({
-        method = "track.scrobble",
-        api_key = api_key,
-        sk = session_key,
-        artist = artist,
-        track = title,
-        album = album,
-        timestamp = tostring(timestamp),
-        api_sig = sig,
-    })
+    if tostring(status) == "200" and accepted == 0 and ignored == 1 and tostring(ignored_code) == "1" then
+        local retry_ts = timestamp - 10
+        if retry_ts ~= timestamp then
+            params.timestamp = tostring(retry_ts)
+            response, status, decoded = post_scrobble_request(params)
+            accepted = decoded and decoded.scrobbles and decoded.scrobbles["@attr"] and tonumber(decoded.scrobbles["@attr"].accepted)
+            ignored = decoded and decoded.scrobbles and decoded.scrobbles["@attr"] and tonumber(decoded.scrobbles["@attr"].ignored)
+        end
+    end
 
-    last_scrobble_time = os.time()
-
-    if tostring(status) == "200" then
+    if tostring(status) == "200" and accepted == 1 then
+        last_scrobble_time = os.time()
         session_scrobbles = session_scrobbles + 1
 
         local scrobble_count = get_track_scrobble_count(artist, title)
@@ -449,6 +491,8 @@ local function do_scrobble(track, timestamp)
         cliamp.timer.after(message_duration, function()
             lastfm_message(stats_message, message_duration)
         end)
+
+        return true
     else
         local error_detail = "status=" .. tostring(status)
 
@@ -456,8 +500,15 @@ local function do_scrobble(track, timestamp)
             error_detail = error_detail .. ", response=" .. tostring(response)
         end
 
-        cliamp.log.warn("last.fm scrobble failed: " .. error_detail)
-        lastfm_message("[last.fm] Unable to scrobble now. Check your connection or last.fm status.", message_duration)
+        if tostring(status) == "200" and accepted == 0 then
+            cliamp.log.warn("last.fm scrobble ignored: " .. error_detail)
+            lastfm_message("[last.fm] Scrobble ignored by server", message_duration)
+        else
+            cliamp.log.warn("last.fm scrobble failed: " .. error_detail)
+            lastfm_message("[last.fm] Unable to scrobble now. Check your connection or last.fm status.", message_duration)
+        end
+
+        return false
     end
 end
 
@@ -479,6 +530,8 @@ end
 -- Catch natural ends via playback position
 p:on("track.change", function(track)
     has_scrobbled_current = false
+    current_track_artist, current_track_title = normalize_track_meta(track)
+    local track_path = track and track.path and tostring(track.path) or "<no path>"
 
     if not lastfm_enabled() then return end
 
@@ -499,13 +552,40 @@ end)
 
 p:on("playback.state", function(data)
     if not lastfm_enabled() then return end
-
     local dur = get(cliamp.player.duration) or 0
+    local position = data.position or get(cliamp.player.position) or 0
+    local previous_artist = current_track_artist
+    local previous_title = current_track_title
+    local current_artist = current_track_artist and current_track_artist ~= "" and current_track_artist or nil
+    local current_title = current_track_title and current_track_title ~= "" and current_track_title or nil
+    local cliamp_artist = cliamp.track.artist() or ""
+    local cliamp_title = cliamp.track.title() or ""
+    local data_artist = data.artist or data.Artist or ""
+    local data_title = data.title or data.Title or (data.track and (data.track.title or data.track.Title or data.track.track or data.track.Track)) or ""
 
-    if not has_scrobbled_current and dur >= 30 and data.status == "playing" then
-        if data.position >= (dur - 1.5) then
-            do_scrobble(data, os.time())
-            has_scrobbled_current = true
+    if data_artist ~= "" or data_title ~= "" then
+        current_track_artist = data_artist ~= "" and data_artist or current_track_artist
+        current_track_title = data_title ~= "" and data_title or current_track_title
+        current_artist = current_track_artist and current_track_artist ~= "" and current_track_artist or nil
+        current_title = current_track_title and current_track_title ~= "" and current_track_title or nil
+    end
+
+    if previous_artist and previous_title and current_track_artist and current_track_title then
+        if (previous_artist ~= current_track_artist or previous_title ~= current_track_title) and has_scrobbled_current then
+            has_scrobbled_current = false
+        end
+    end
+
+    local artist = current_artist or cliamp_artist or "<unknown artist>"
+    local title = current_title or cliamp_title or "<unknown title>"
+
+    if not has_scrobbled_current and data.status == "playing" then
+        local threshold = dur >= 30 and (dur - 1.5) or 30
+        if position >= threshold then
+            local ts = os.time() - math.floor(position)
+            if do_scrobble(data, ts) then
+                has_scrobbled_current = true
+            end
         end
     end
 end)
@@ -514,10 +594,21 @@ p:on("track.scrobble", function(track)
     if not lastfm_enabled() then return end
 
     local dur = get(cliamp.player.duration) or 0
+    local position = track.played_secs or get(cliamp.player.position) or 0
+    local threshold = 30
 
-    if not has_scrobbled_current and dur >= 30 then
-        do_scrobble(track, os.time())
-        has_scrobbled_current = true
+    if dur >= 30 then
+        threshold = math.min(dur / 2, 240)
+    end
+
+    if not has_scrobbled_current and position >= threshold then
+        local ts = os.time() - math.floor(position)
+        if track.path and not track.path:match("^spotify:") and not track.path:match("^https?://") then
+            ts = ts - 5
+        end
+        if do_scrobble(track, ts) then
+            has_scrobbled_current = true
+        end
     end
 end)
 
