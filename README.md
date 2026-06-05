@@ -1,5 +1,12 @@
 ![scrobbling in cliamp](https://github.com/tetsuo76/cliamp-lastfm/blob/main/screenshot.png?raw=true)
 
+## Important Note:
+Some important changes since version 1.4.1:
+- The filename of the .lua file was renamed to `~/.config/cliamp/plugins/cliamp-lastfm.lua`
+- and you need to change `[plugins.lastfm]` to `[plugins.cliamp-lastfm]` in your `~/.config/cliamp/config.toml` file.
+
+The above changes were necessary in order for the `cliamp plugins install` command to work properly.
+
 ### Simple last.fm plugin v1.6.0 for [cliamp](https://github.com/bjarneo/cliamp)
 
 Info about last.fm authentication (in order to create your **API_KEY** and **API_SECRET**):
@@ -24,7 +31,7 @@ cliamp plugins install tetsuo76/cliamp-lastfm
 - Edit cliamp's config file (`~/.config/cliamp/config.toml`) and add the required last.fm section:
 
 ```
-[plugins.lastfm]
+[plugins.cliamp-lastfm]
 api_key = "API_KEY"
 api_secret = "API_SECRET"
 session_key = "SESSION_KEY"
