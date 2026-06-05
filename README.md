@@ -1,55 +1,72 @@
 ![scrobbling in cliamp](https://github.com/tetsuo76/cliamp-lastfm/blob/main/screenshot.png?raw=true)
 
-## Important Note:
-Some important changes since version 1.4.1:
-- The filename of the .lua file was renamed to `~/.config/cliamp/plugins/cliamp-lastfm.lua`
-- and you need to change `[plugins.lastfm]` to `[plugins.cliamp-lastfm]` in your `~/.config/cliamp/config.toml` file.
+## Release Notes
 
-The above changes were necessary in order for the `cliamp plugins install` command to work properly.
+### v1.7.0 (Latest)
+- ✨ **New:** Automated setup script (`setup-lastfm.sh`) - simplifies authentication
+- ✨ **New:** Auto-opens Last.fm API registration page
+- ✨ **New:** Browser-based OAuth flow with automatic credential saving
+- 🎯 No more manual session key generation
+- 📖 Updated setup instructions with quick-start guide
 
-### Simple last.fm plugin v1.6.0 for [cliamp](https://github.com/bjarneo/cliamp)
+### Important Migration Notes:
+- As of v1.4.1+, plugin filename changed to `~/.config/cliamp/plugins/cliamp-lastfm.lua`
+- Update your config: change `[plugins.lastfm]` to `[plugins.cliamp-lastfm]` in `~/.config/cliamp/config.toml`
 
-Info about last.fm authentication (in order to create your **API_KEY** and **API_SECRET**):
-https://www.last.fm/api/authentication
+---
 
-Useful python app to obtain your **SESSION_KEY**:
-https://github.com/TheMemoman/lastfm_Get_Session_Key
+### Simple last.fm plugin v1.7.0 for [cliamp](https://github.com/bjarneo/cliamp)
 
-### Installation/Config:
+### 🚀 Quick Setup (2 minutes)
 
-#### Method 1:
+1. **Install the plugin:**
+   ```bash
+   cliamp plugins install tetsuo76/cliamp-lastfm
+   ```
 
-- Copy the plugin (lastfm.lua) into the cliamp's plugins directory (`~/.config/cliamp/plugins`). 
+2. **Run the setup script:**
+   ```bash
+   ./setup-lastfm.sh
+   ```
+   
+   **What the script does:**
+   - Opens Last.fm API registration (you only need an app name)
+   - Gets your API Key and Secret
+   - Opens Last.fm login page
+   - You authorize once, credentials saved automatically
+   - ✅ Done!
 
-#### Method 2:
+3. **Restart cliamp** and start scrobbling!
 
-- Install it via cliamp with 
-```
-cliamp plugins install tetsuo76/cliamp-lastfm
-```
+### ⚙️ Prerequisites
 
-- Edit cliamp's config file (`~/.config/cliamp/config.toml`) and add the required last.fm section:
+- `bash` shell
+- `curl` - for API requests
+- `jq` - for JSON parsing (install: `sudo apt install jq` or `brew install jq`)
+- Web browser - for Last.fm authorization
 
-```
+### 📖 Manual Setup (Legacy)
+
+If you prefer to configure manually without the script, edit `~/.config/cliamp/config.toml`:
+
+```toml
 [plugins.cliamp-lastfm]
-api_key = "API_KEY"
-api_secret = "API_SECRET"
+api_key = "YOUR_API_KEY"
+api_secret = "YOUR_API_SECRET"
 session_key = "SESSION_KEY"
 username = "LASTFM_USERNAME"
 ```
 
-- Replace **API_KEY**, **API_SECRET**, **SESSION_KEY** and **LASTFM_USERNAME** username with your own.
+### Update Plugin
 
-### Update: 
-
-- Remove the plugin first
-```
-cliamp plugins remove cliamp-lastfm
-```
-- and install the latest version using the cliamp command
-```
-cliamp plugins install tetsuo76/cliamp-lastfm
-```
+- Remove old version:
+  ```bash
+  cliamp plugins remove cliamp-lastfm
+  ```
+- Install latest:
+  ```bash
+  cliamp plugins install tetsuo76/cliamp-lastfm
+  ```
 
 ### Track Loving System:
 
@@ -68,4 +85,4 @@ cliamp plugins install tetsuo76/cliamp-lastfm
 
 **Mode Toggle Keybind:** `&`
 
-Tested with cliamp v1.56.0. Scrobbling works with local files, radios, Spotify and Plex. It should work with other providers but I wasn't able to test them. 
+Tested with cliamp v1.57.0. Scrobbling works with local files, radios, Spotify and Plex. It should work with other providers but I wasn't able to test them. 
