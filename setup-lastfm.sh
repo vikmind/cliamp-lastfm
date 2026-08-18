@@ -47,7 +47,11 @@ urlencode() {
 
 # Function to get MD5 hash
 md5_hash() {
-    echo -n "$1" | md5sum | awk '{print $1}'
+    if command -v md5sum > /dev/null; then
+        printf '%s' "$1" | md5sum | awk '{print $1}'
+    else
+        printf '%s' "$1" | md5 -q
+    fi
 }
 
 # Function to build API signature
@@ -96,17 +100,30 @@ setup_config_section() {
 update_config() {
     local key="$1"
     local value="$2"
-    
+    local tmp
+
     # Escape quotes in value
     value="${value//\"/\\\"}"
-    
-    if grep -q "^$key = " "$CONFIG_FILE"; then
-        # Update existing value
-        sed -i "s/^$key = .*/$key = \"$value\"/" "$CONFIG_FILE"
-    else
-        # Add new value after section header
-        sed -i "/^\[plugins.cliamp-lastfm\]/a $key = \"$value\"" "$CONFIG_FILE"
-    fi
+
+    tmp=$(mktemp)
+
+    # Replace the key inside our section, or append it to the section if absent
+    cfg_key="$key" cfg_value="$value" cfg_section="$SECTION" awk '
+        BEGIN { line = ENVIRON["cfg_key"] " = \"" ENVIRON["cfg_value"] "\"" }
+        /^[[:space:]]*\[/ {
+            if (insec && !done) { print line; done = 1 }
+            insec = ($0 == ENVIRON["cfg_section"])
+        }
+        insec && !done && $0 ~ "^[[:space:]]*" ENVIRON["cfg_key"] "[[:space:]]*=" {
+            print line; done = 1; next
+        }
+        { print }
+        END { if (insec && !done) print line }
+    ' "$CONFIG_FILE" > "$tmp"
+
+    # Copy contents rather than mv, so the config keeps its original permissions
+    cat "$tmp" > "$CONFIG_FILE"
+    rm -f "$tmp"
 }
 
 # Open URL in browser
