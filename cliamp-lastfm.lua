@@ -17,6 +17,8 @@ local has_scrobbled_current = false
 local session_scrobbles = 0
 local last_scrobble_time = 0
 local message_duration = 10
+local pending_scrobble_key = nil
+local pending_scrobble_ts = nil
 
 -- last.fm modes:
 -- normal  = everything works, messages shown
@@ -65,6 +67,19 @@ local function format_number(num)
     local formatted = str:reverse():gsub("(%d%d%d)", "%1,"):reverse()
     if formatted:sub(1, 1) == "," then formatted = formatted:sub(2) end
     return formatted
+end
+
+-- Hold one timestamp per track, so a retry after a failed request reuses it
+-- and last.fm can recognise the duplicate instead of logging a second play
+local function scrobble_timestamp(artist, title, position)
+    local key = tostring(artist) .. "\t" .. tostring(title)
+
+    if pending_scrobble_key ~= key then
+        pending_scrobble_key = key
+        pending_scrobble_ts = os.time() - math.floor(position)
+    end
+
+    return pending_scrobble_ts
 end
 
 local function get_api_sig(params)
@@ -228,7 +243,7 @@ local function get_track_scrobble_count(artist, title)
             local count = tonumber(data.track.userplaycount)
 
             if count then
-                return format_number(count)
+                return count
             end
         end
     end
@@ -598,7 +613,7 @@ p:on("playback.state", function(data)
     if not has_scrobbled_current and data.status == "playing" then
         local threshold = dur >= 30 and (dur - 1.5) or 30
         if position >= threshold then
-            local ts = os.time() - math.floor(position)
+            local ts = scrobble_timestamp(artist, title, position)
             if do_scrobble(data, ts) then
                 has_scrobbled_current = true
             end
@@ -618,7 +633,8 @@ p:on("track.scrobble", function(track)
     end
 
     if not has_scrobbled_current and position >= threshold then
-        local ts = os.time() - math.floor(position)
+        local artist, title = normalize_track_meta(track)
+        local ts = scrobble_timestamp(artist, title, position)
         if track.path and not track.path:match("^spotify:") and not track.path:match("^https?://") then
             ts = ts - 5
         end
