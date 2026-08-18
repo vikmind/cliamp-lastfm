@@ -106,7 +106,16 @@ local function lastfm_get(url)
         return nil, "disabled"
     end
 
-    return cliamp.http.get(url)
+    -- http errors (timeouts) are raised, not returned; catch them so a failed
+    -- request cannot abort the calling event handler
+    local ok, response, status = pcall(cliamp.http.get, url)
+
+    if not ok then
+        cliamp.log.warn("last.fm request failed: " .. tostring(response))
+        return nil, "error"
+    end
+
+    return response, status
 end
 
 local function lastfm_post(params)
@@ -114,10 +123,17 @@ local function lastfm_post(params)
         return nil, "disabled"
     end
 
-    return cliamp.http.post(API_URL, {
+    local ok, response, status = pcall(cliamp.http.post, API_URL, {
         body = build_post_body(params),
         headers = { ["Content-Type"] = "application/x-www-form-urlencoded" }
     })
+
+    if not ok then
+        cliamp.log.warn("last.fm request failed: " .. tostring(response))
+        return nil, "error"
+    end
+
+    return response, status
 end
 
 local function normalize_track_meta(track)
